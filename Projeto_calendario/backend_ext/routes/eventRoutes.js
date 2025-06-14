@@ -18,8 +18,8 @@ router.post('/cadastro', async (req, res) => {
 
 // Listar eventos por ano, mes e dia (GET)
 router.get('/eventos', async (req, res) => {
-  const { ano, mes, dia } = req.query;
-  if (!ano || !mes || !dia) return res.status(400).json({ message: "Informe 'ano', 'mes' e 'dia' como parâmetros." });
+  const { mes, dia } = req.query;
+  if (!mes || !dia) return res.status(400).json({ message: "Informe 'mes' e 'dia' como parâmetros." });
 
   try {
     const eventos = await Evento.find({

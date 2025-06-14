@@ -66,7 +66,7 @@
 
           <ul class="diasSemana">
 
-            <li class="dia" v-for="numero in this.contagemDia" :key="numero" @click="procurarEventosDia(this.anoSelecionado, numero, this.mesSelecionado)">
+            <li class="dia" v-for="numero in this.contagemDia" :key="numero" @click="procurarEventosDia(numero, this.mesSelecionado)">
               {{numero}}
               <span
                 class="indicador"
@@ -397,96 +397,42 @@ export default {
 
 
     //procurar eventos por mes com base na escolha do usuário
-    async procurarEventosMes(mes, ano){
-      
-    async procurarEventosMes(mes, ano){
-      
-      this.exibirMenuAno = false
-      this.exibirMenuMes = false
-      this.limparEventos()
-      this.limparEventos()
+    async procurarEventosMes(mes, ano) {
+      this.exibirMenuAno = false;
+      this.exibirMenuMes = false;
+      this.limparEventos();
 
-      this.contagemDia = new Date(ano, mes, 0).getDate()
-      this.anoSelecionado = ano
-      this.mesSelecionado = mes
-      this.mesSelecionadoString = this.mesString(mes)
-
-      await fetch(`${this.apiURL}/eventos/mensal/?ano=${ano}&mes=${String(mes).padStart(2, "0")}`, {
-        method:"GET",
+      // Buscar eventos mensais
+      await fetch(`${this.apiURL}/eventos/mensal?ano=${ano}&mes=${mes}`, {
+        method: "GET",
         headers: {
-          "Content-type":"application/json"
+          "Content-type": "application/json"
         }
       })
-      .then(resp => resp.json())
-      .then(data => {
+        .then(resp => resp.json())
+        .then(data => {
+          this.processarEventos(data, "mes");
+        });
 
-        this.processarEventos(data, "mes")
-
-      })
-
-      this.eventosSempre.dias = []
-      //coletar os eventos que sempre ocorrem
-      await fetch(`${this.apiURL}/eventos/sempre/?mes=${String(mes).padStart(2, "0")}`, {
-        method:"GET",
+      // Buscar eventos "sempre" para o mês
+      await fetch(`${this.apiURL}/eventos/sempre?mes=${mes}`, {
+        method: "GET",
         headers: {
-          "Content-type":"application/json"
+          "Content-type": "application/json"
         }
       })
-      .then(resp => resp.json())
-      .then(data => {
+        .then(resp => resp.json())
+        .then(data => {
+          for (let i = 0; i < data.length; i++) {
+            let day = new Date(data[i].data).getUTCDate();
+            this.eventosSempre.dias.push(day);
+          }
+        });
 
-        for (let i = 0; i < data.length; i++) {
-          let day = ""
-          day = new Date(data[i].data)
-          day = day.getUTCDate()
-
-          this.eventosSempre.dias.push(day)
-        
-        }
-
-      })
-      .catch(err => {
-        console.log(err)
-      })
-
-      await fetch(`${this.apiURL}/eventos/mensal/?ano=${ano}&mes=${String(mes).padStart(2, "0")}`, {
-        method:"GET",
-        headers: {
-          "Content-type":"application/json"
-        }
-      })
-      .then(resp => resp.json())
-      .then(data => {
-
-        this.processarEventos(data, "mes")
-
-      })
-
-      this.eventosSempre.dias = []
-      //coletar os eventos que sempre ocorrem
-      await fetch(`${this.apiURL}/eventos/sempre/?mes=${String(mes).padStart(2, "0")}`, {
-        method:"GET",
-        headers: {
-          "Content-type":"application/json"
-        }
-      })
-      .then(resp => resp.json())
-      .then(data => {
-
-        for (let i = 0; i < data.length; i++) {
-          let day = ""
-          day = new Date(data[i].data)
-          day = day.getUTCDate()
-
-          this.eventosSempre.dias.push(day)
-        
-        }
-
-      })
-      .catch(err => {
-        console.log(err)
-      })
-
+      this.contagemDia = new Date(ano, mes, 0).getDate();
+      this.anoSelecionado = ano;
+      this.mesSelecionado = mes;
+      this.mesSelecionadoString = this.mesString(mes);
     },
 
     async registrarEvento(e){
@@ -494,93 +440,92 @@ export default {
       var data = {}
       var jsonData = "" 
       if(this.isRegister){
-      var data = {}
-      var jsonData = "" 
-      if(this.isRegister){
+        var data = {}
+        var jsonData = "" 
+        if(this.isRegister){
 
-        data = {
-          descricao: this.descricao,
-          data: `${this.anoSelecionado}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-          ultima_data: `${this.anoSelecionado + this.quant}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-          sempre: this.sempre,
-          cor: this.cor
+          data = {
+            descricao: this.descricao,
+            data: `${this.anoSelecionado}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
+            ultima_data: `${this.anoSelecionado + this.quant}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
+            sempre: this.sempre,
+            cor: this.cor
+          }
+
+          jsonData = JSON.stringify(data)
+
+          await fetch(`${this.apiURL}/cadastro/`, {
+            method:"POST",
+            headers:{
+              "Content-type":"application/json"
+            },
+            body: jsonData
+          })
+          .then(resp => resp.json())
+          .then(data => {
+
+            this.message = data.message
+            setTimeout(() => {
+              
+              this.message = null
+              this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado)
+              this.mostrarFormulario = false
+              this.mostrarDia = true
+              this.limparFomulario()
+
+            }, 1200);
+
+          })
+
+        } else {
+
+          data = {
+            id: this.id,
+            descricao: this.descricao,
+            data: `${this.anoSelecionado}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
+            ultima_data: `${this.anoSelecionado + this.quant}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
+            sempre: this.sempre,
+            cor: this.cor
+          }
+        
+          jsonData = JSON.stringify(data)
+
+          await fetch(`${this.apiURL}/update/${this.id}/`, {
+            method:"PUT",
+            headers:{
+              "Content-type":"application/json"
+            },
+            body: jsonData
+          })
+          .then(resp => resp.json())
+          .then(data => {
+
+            this.message = data.message
+            setTimeout(() => {
+              
+              this.message = null
+              this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado)
+              this.mostrarFormulario = false
+              this.mostrarDia = true
+              this.limparFomulario()
+
+            }, 1200);
+
+          })
+
         }
-        data = {
-          descricao: this.descricao,
-          data: `${this.anoSelecionado}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-          ultima_data: `${this.anoSelecionado + this.quant}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-          sempre: this.sempre,
-          cor: this.cor
-        }
-
-        jsonData = JSON.stringify(data)
-        jsonData = JSON.stringify(data)
-
-        await fetch(`${this.apiURL}/cadastro/`, {
-          method:"POST",
-          headers:{
-            "Content-type":"application/json"
-          },
-          body: jsonData
-        })
-        .then(resp => resp.json())
-        .then(data => {
-
-          this.message = data.message
-          setTimeout(() => {
-            
-            this.message = null
-            this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado)
-            this.mostrarFormulario = false
-            this.mostrarDia = true
-            this.limparFomulario()
-
-          }, 1200);
-
-        })
-
-      } else {
-
-        data = {
-          id: this.id,
-          descricao: this.descricao,
-          data: `${this.anoSelecionado}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-          ultima_data: `${this.anoSelecionado + this.quant}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-          sempre: this.sempre,
-          cor: this.cor
-        }
-       
-        jsonData = JSON.stringify(data)
-
-        await fetch(`${this.apiURL}/update/${this.id}/`, {
-          method:"PUT",
-          headers:{
-            "Content-type":"application/json"
-          },
-          body: jsonData
-        })
-        .then(resp => resp.json())
-        .then(data => {
-
-          this.message = data.message
-          setTimeout(() => {
-            
-            this.message = null
-            this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado)
-            this.mostrarFormulario = false
-            this.mostrarDia = true
-            this.limparFomulario()
-
-          }, 1200);
-
-        })
 
       }
 
     },
-
+    
     async atualizarEvento(e, id){
-      
+        e.preventDefault()
+        this.limparFomulario()
+        this.mostrarFormulario = true
+        this.mostrarDia = false
+        this.isRegister = false
+
         await fetch(`${this.apiURL}/cadastro/`, {
           method:"POST",
           headers:{
@@ -590,7 +535,7 @@ export default {
         })
         .then(resp => resp.json())
         .then(data => {
-
+        
           this.message = data.message
           setTimeout(() => {
             
@@ -603,44 +548,6 @@ export default {
           }, 1200);
 
         })
-
-      } else {
-
-        data = {
-          id: this.id,
-          descricao: this.descricao,
-          data: `${this.anoSelecionado}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-          ultima_data: `${this.anoSelecionado + this.quant}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-          sempre: this.sempre,
-          cor: this.cor
-        }
-       
-        jsonData = JSON.stringify(data)
-
-        await fetch(`${this.apiURL}/update/${this.id}/`, {
-          method:"PUT",
-          headers:{
-            "Content-type":"application/json"
-          },
-          body: jsonData
-        })
-        .then(resp => resp.json())
-        .then(data => {
-
-          this.message = data.message
-          setTimeout(() => {
-            
-            this.message = null
-            this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado)
-            this.mostrarFormulario = false
-            this.mostrarDia = true
-            this.limparFomulario()
-
-          }, 1200);
-
-        })
-
-      }
 
     },
 
@@ -785,31 +692,23 @@ export default {
     },
 
     //procurar eventos por dia com base na escolha do usuário
-    async procurarEventosDia(dia, mes){
+    async procurarEventosDia(dia, mes) {
+      this.diaSelecionado = dia;
+      this.mesSelecionado = mes;
+      this.mostrarDia = true;
+      this.limparEventos();
 
-      this.diaSelecionado = dia
-      this.mesSelecionado = mes
-      this.mostrarDia = true
-      this.limparEventos()
-      this.limparEventos()
-
-      await fetch(`${this.apiURL}/eventos/?mes=${String(mes).padStart(2, "0")}&dia=${String(dia).padStart(2, "0")}`, {
-        method:"GET",
-        headers:{
-          "Content-type":"application/json"
-          "Content-type":"application/json"
+      // Buscar eventos por dia
+      await fetch(`${this.apiURL}/eventos?mes=${mes}&dia=${dia}`, {
+        method: "GET",
+        headers: {
+          "Content-type": "application/json"
         }
       })
-      .then(resp => resp.json())
-      .then(data => {
-
-        this.processarEventos(data, "dia")
-
-
-        this.processarEventos(data, "dia")
-
-      })
-
+        .then(resp => resp.json())
+        .then(data => {
+          this.processarEventos(data, "dia");
+        });
     },
 
     // coleta o numero do mes e retorna o nome do mes por extenso
@@ -893,7 +792,7 @@ export default {
             day = day.getUTCDate()
 
             this.eventosProcessados.datasIniciais.push(day)
-            this.eventosProcessados.ids.push(data[i].id)
+            this.eventosProcessados.ids.push(data[i]._id)
             this.eventosProcessados.descricoes.push(data[i].descricao)
             this.eventosProcessados.datasFinais.push(data[i].ultima_data)
             this.eventosProcessados.sempre.push(data[i].sempre)
@@ -913,7 +812,7 @@ export default {
               day = new Date(data[i].data)
               day = day.getUTCDate()
               this.eventosProcessados.datasIniciais.push(day)
-              this.eventosProcessados.ids.push(data[i].id)
+              this.eventosProcessados.ids.push(data[i]._id)
               this.eventosProcessados.descricoes.push(data[i].descricao)
               this.eventosProcessados.datasFinais.push(data[i].ultima_data)
               this.eventosProcessados.sempre.push(data[i].sempre)
@@ -939,7 +838,7 @@ export default {
             day = day.getUTCDate()
 
             eventoModel.data = day
-            eventoModel.id = data[i].id
+            eventoModel.id = data[i]._id
             eventoModel.descricao = data[i].descricao
             eventoModel.ultima_data = data[i].ultima_data
             eventoModel.sempre = data[i].sempre
@@ -957,7 +856,7 @@ export default {
               day = new Date(data[i].data)
               day = day.getUTCDate()
               eventoModel.data = day
-              eventoModel.id = data[i].id
+              eventoModel.id = data[i]._id
               eventoModel.descricao =  data[i].descricao
               eventoModel.ultima_data =  data[i].ultima_data
               eventoModel.sempre = data[i].sempre
@@ -1022,190 +921,6 @@ export default {
       }
     }
   }
-
-    },
-
-    limparFomulario(){
-      this.id = null,
-      this.descricao = null,
-      this.data = null,
-      this.ultima_data = null,
-      this.sempre = true,
-      this.cor = null,
-      this.isRegister = true,
-      this.quant = 0,
-      this.message = null
-    },
-
-    limparEventos(){
-      this.eventosProcessadosDia = []
-
-      this.eventosProcessados.ids = [],
-      this.eventosProcessados.descricoes = [],      
-      this.eventosProcessados.datasIniciais = [],
-      this.eventosProcessados.datasFinais = [],
-      this.eventosProcessados.sempre = [],
-      this.eventosProcessados.cores = []
-
-      this.eventosSempre.dias = []
-
-    },
-
-    processarEventos(data, metodo){
-
-      let day = ""
-      let month = ""
-      let ano = ""
-      let anoBase = ""
-
-      for (let i = 0; i < data.length; i++) {
-          
-        let eventoModel = {
-          id: null,
-          descricao:null,
-          data:null,
-          ultima_data:null,
-          sempre:false,
-          cor:null
-        }
-         
-        if(metodo == "mes"){
-          if(data[i].sempre == true){
-
-            day = new Date(data[i].data)
-            day = day.getUTCDate()
-
-            this.eventosProcessados.datasIniciais.push(day)
-            this.eventosProcessados.ids.push(data[i].id)
-            this.eventosProcessados.descricoes.push(data[i].descricao)
-            this.eventosProcessados.datasFinais.push(data[i].ultima_data)
-            this.eventosProcessados.sempre.push(data[i].sempre)
-            this.eventosProcessados.cores.push(data[i].cor)
-
-
-          } else {
-
-            anoBase = new Date(data[i].data)
-            anoBase = anoBase.getFullYear()
-            ano = new Date(data[i].ultima_data)
-            ano = ano.getFullYear()
-
-            
-
-            if(this.anoSelecionado <= ano && this.anoSelecionado >= anoBase){
-              day = new Date(data[i].data)
-              day = day.getUTCDate()
-              this.eventosProcessados.datasIniciais.push(day)
-              this.eventosProcessados.ids.push(data[i].id)
-              this.eventosProcessados.descricoes.push(data[i].descricao)
-              this.eventosProcessados.datasFinais.push(data[i].ultima_data)
-              this.eventosProcessados.sempre.push(data[i].sempre)
-              this.eventosProcessados.cores.push(data[i].cor)
-            } else {
-              this.eventosProcessados.datasIniciais.push(null)
-              this.eventosProcessados.ids.push(null)
-              this.eventosProcessados.descricoes.push(null)
-              this.eventosProcessados.datasFinais.push(null)
-              this.eventosProcessados.sempre.push(null)
-              this.eventosProcessados.cores.push(null)
-
-            }
-
-          }
-
-
-        } else {
-
-          if(data[i].sempre){
-
-            day = new Date(data[i].data)
-            day = day.getUTCDate()
-
-            eventoModel.data = day
-            eventoModel.id = data[i].id
-            eventoModel.descricao = data[i].descricao
-            eventoModel.ultima_data = data[i].ultima_data
-            eventoModel.sempre = data[i].sempre
-            eventoModel.cor = data[i].cor
-            this.eventosProcessadosDia.push(eventoModel)
-
-          } else {
-
-            anoBase = new Date(data[i].data)
-            anoBase = anoBase.getFullYear()
-            ano = new Date(data[i].ultima_data)
-            ano = ano.getFullYear()
-
-            if(this.anoSelecionado <= ano && this.anoSelecionado >= anoBase){
-              day = new Date(data[i].data)
-              day = day.getUTCDate()
-              eventoModel.data = day
-              eventoModel.id = data[i].id
-              eventoModel.descricao =  data[i].descricao
-              eventoModel.ultima_data =  data[i].ultima_data
-              eventoModel.sempre = data[i].sempre
-              eventoModel.cor =  data[i].cor
-              this.eventosProcessadosDia.push(eventoModel)
-
-            } else {
-
-              eventoModel.id = null
-              eventoModel.descricao = null
-              eventoModel.data = null
-              eventoModel.ultima_data = null
-              eventoModel.sempre = false
-              eventoModel.cor = null
-              this.eventosProcessadosDia.push(eventoModel)
-
-            }
-          
-          }
-
-        }
-        
-      }
-
-    },
-
-    async verificarEventosProximos() {
-      try {
-        const hoje = new Date();
-        const dataFutura = new Date();
-        dataFutura.setDate(hoje.getDate() + 30);
-        
-        // Formata datas para YYYY-MM-DD
-        const formatarData = (date) => date.toISOString().split('T')[0];
-        
-        const response = await fetch(`${this.apiURL}/eventos/proximos/`, {
-          method: "GET",
-          headers: {
-            "Content-type": "application/json"
-          }
-        });
-        
-        const eventos = await response.json();
-        
-        if (eventos.length > 0) {
-          eventos.forEach(evento => {
-            const diasRestantes = Math.floor(
-              (new Date(evento.ultima_data) - hoje) / (1000 * 60 * 60 * 24)
-            );
-            
-            this.enviarNotificacao(
-              evento.descricao, 
-              `Evento em ${diasRestantes + 1} dias!`
-            );
-          });
-        }
-        
-      } catch (err) {
-        console.error("Erro ao verificar eventos:", err);
-        // Opcional: enviar notificação de erro
-        this.enviarNotificacao("Erro", "Não foi possível verificar eventos futuros");
-      }
-    }
-  }
-
 }
 </script>
 <style scoped>
