@@ -343,4 +343,13 @@ footer{
   }
 }
 
+/* configurações para celular */
+@media (width <= 480px) {
+
+  header{
+    margin-bottom: 20px;
+  }
+
+}
+
 </style>

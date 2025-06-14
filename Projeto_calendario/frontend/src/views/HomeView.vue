@@ -993,13 +993,6 @@ export default {
   max-width: 500px;
 }
 
-li.dia-semana {
-  font-weight: bold;
-  padding: 8px 15px;
-  background: var(--color-main00);
-  border-radius: 8px;
-}
-
 .dia-mes {
   padding: 10px 0;
   background-color: var(--color-main04);
@@ -1165,13 +1158,15 @@ li.dia-semana {
 }
 
 .dia-semana {
-  font-weight: 600;
   padding: 10px 0;
-  background: transparent;
   color: #a3a9b8;
-  letter-spacing: 1px;
-  font-size: 1.05em;
+  font-size: clamp(0.625rem, 0.4638rem + 0.7368vw, 1.0625rem);
   border-bottom: 1px solid #23263a;
+  font-weight: bold;
+  width: 90%;
+  padding: 8px 8px;
+  background: var(--color-main00);
+  border-radius: 8px;
 }
 
 .dia-mes {
