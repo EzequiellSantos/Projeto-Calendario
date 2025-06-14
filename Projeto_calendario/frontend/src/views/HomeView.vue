@@ -63,18 +63,30 @@
 
         <!-- display grid de 7 colunas -->
         <div id="diasMes">
-
           <ul class="diasSemana">
 
-            <li class="dia" v-for="numero in this.contagemDia" :key="numero" @click="procurarEventosDia(numero, this.mesSelecionado)">
-              {{numero}}
-              <span
-                class="indicador"
-                v-if="eventosProcessados.datasIniciais.includes(numero) || eventosSempre.dias.includes(numero)"
-              ></span>
+            <!-- Primeira linha: Cabeçalho com os dias da semana -->
+            <li class="dia-semana" v-for="(dia, index) in ['Dom','Seg','Ter','Qua','Qui','Sex','Sab']" :key="'header-' + index">
+              {{ dia }}
+            </li>
+
+            <!-- Segunda parte: Espaços vazios antes do primeiro dia do mês -->
+            <li class="dia vazio" v-for="n in diasVazios" :key="'vazio-' + n"></li>
+
+            <!-- Dias do mês -->
+            <li class="dia" 
+                v-for="numero in contagemDia" 
+                :key="numero" 
+                @click="procurarEventosDia(numero, mesSelecionado)">
+              
+              {{ numero }}
+              <span class="indicador"
+                v-if="eventosProcessados.datasIniciais.includes(numero) || eventosSempre.dias.includes(numero)">
+              </span>
             </li>
 
           </ul>
+
 
           <div v-if="mostrarDia" class="s">
 
@@ -258,7 +270,11 @@ export default {
       mostrarDia: false,
       estaRedimencionando: false,
       cardAltura: 400,
-      posicaoY: 0
+      posicaoY: 0,
+      diasDoMes: [],
+      diasVazios: 0, // aqui mudou de array para quantidade
+      eventosProcessados: { datasIniciais: [] }, // sua estrutura original
+      eventosSempre: { dias: [] }
 
     }
   },
@@ -279,8 +295,21 @@ export default {
     this.procurarEventosMes(this.mesAtual, this.anoAtual)
     this.verificarEventosProximos()
   },
+  mounted(){
+    this.montarCalendario();
+  },
   methods:{
-    
+
+    montarCalendario() {
+      const primeiroDia = new Date(this.anoSelecionado, this.mesSelecionado - 1, 1);
+      const ultimoDia = new Date(this.anoSelecionado, this.mesSelecionado, 0);
+      const totalDias = ultimoDia.getDate();
+      const diaSemanaPrimeiro = primeiroDia.getDay(); // 0 (domingo) até 6 (sábado)
+
+      this.diasVazios = diaSemanaPrimeiro;
+      this.contagemDia = Array.from({ length: totalDias }, (_, i) => i + 1);
+    },
+
     pedirPermissao() {
       if ("Notification" in window) {
         Notification.requestPermission().then(permission => {
@@ -433,121 +462,63 @@ export default {
       this.anoSelecionado = ano;
       this.mesSelecionado = mes;
       this.mesSelecionadoString = this.mesString(mes);
+      this.montarCalendario();
     },
 
-    async registrarEvento(e){
-      e.preventDefault()
-      var data = {}
-      var jsonData = "" 
-      if(this.isRegister){
-        var data = {}
-        var jsonData = "" 
-        if(this.isRegister){
+    async registrarEvento(e) {
+      e.preventDefault();
 
-          data = {
-            descricao: this.descricao,
-            data: `${this.anoSelecionado}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-            ultima_data: `${this.anoSelecionado + this.quant}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-            sempre: this.sempre,
-            cor: this.cor
-          }
+      const dataFormatada = (ano, mes, dia) => {
+        return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+      };
 
-          jsonData = JSON.stringify(data)
+      const dataEvento = {
+        descricao: this.descricao,
+        data: dataFormatada(this.anoSelecionado, this.mesSelecionado, this.diaSelecionado),
+        ultima_data: dataFormatada(this.anoSelecionado + this.quant, this.mesSelecionado, this.diaSelecionado),
+        sempre: this.sempre,
+        cor: this.cor
+      };
 
-          await fetch(`${this.apiURL}/cadastro/`, {
-            method:"POST",
-            headers:{
-              "Content-type":"application/json"
+      try {
+        let response;
+
+        if (this.isRegister) {
+          // Cadastro (POST)
+          response = await fetch(`${this.apiURL}/cadastro`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
             },
-            body: jsonData
-          })
-          .then(resp => resp.json())
-          .then(data => {
-
-            this.message = data.message
-            setTimeout(() => {
-              
-              this.message = null
-              this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado)
-              this.mostrarFormulario = false
-              this.mostrarDia = true
-              this.limparFomulario()
-
-            }, 1200);
-
-          })
-
+            body: JSON.stringify(dataEvento)
+          });
         } else {
-
-          data = {
-            id: this.id,
-            descricao: this.descricao,
-            data: `${this.anoSelecionado}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-            ultima_data: `${this.anoSelecionado + this.quant}-${String(this.mesSelecionado).padStart(2, "0")}-${String(this.diaSelecionado).padStart(2,"0")}`,
-            sempre: this.sempre,
-            cor: this.cor
-          }
-        
-          jsonData = JSON.stringify(data)
-
-          await fetch(`${this.apiURL}/update/${this.id}/`, {
-            method:"PUT",
-            headers:{
-              "Content-type":"application/json"
+          // Atualização (PUT)
+          response = await fetch(`${this.apiURL}/update/${this.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
             },
-            body: jsonData
-          })
-          .then(resp => resp.json())
-          .then(data => {
-
-            this.message = data.message
-            setTimeout(() => {
-              
-              this.message = null
-              this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado)
-              this.mostrarFormulario = false
-              this.mostrarDia = true
-              this.limparFomulario()
-
-            }, 1200);
-
-          })
-
+            body: JSON.stringify(dataEvento)
+          });
         }
 
+        const result = await response.json();
+
+        this.message = result.message;
+
+        setTimeout(() => {
+          this.message = null;
+          this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado);
+          this.mostrarFormulario = false;
+          this.mostrarDia = true;
+          this.limparFomulario();
+        }, 1200);
+
+      } catch (err) {
+        console.error("Erro ao registrar evento:", err);
+        this.enviarNotificacao("Erro", "Não foi possível registrar o evento");
       }
-
-    },
-    
-    async atualizarEvento(e, id){
-        e.preventDefault()
-        this.limparFomulario()
-        this.mostrarFormulario = true
-        this.mostrarDia = false
-        this.isRegister = false
-
-        await fetch(`${this.apiURL}/cadastro/`, {
-          method:"POST",
-          headers:{
-            "Content-type":"application/json"
-          },
-          body: jsonData
-        })
-        .then(resp => resp.json())
-        .then(data => {
-        
-          this.message = data.message
-          setTimeout(() => {
-            
-            this.message = null
-            this.procurarEventosDia(this.diaSelecionado, this.mesSelecionado)
-            this.mostrarFormulario = false
-            this.mostrarDia = true
-            this.limparFomulario()
-
-          }, 1200);
-
-        })
 
     },
 
@@ -659,7 +630,7 @@ export default {
 
     async deletarEvento(e, id){
       e.preventDefault()
-      await fetch(`${this.apiURL}/delete/${id}/`, {
+      await fetch(`${this.apiURL}/delete/${id}`, {
         method:"DELETE",
         headers:{
           "Content-type":"application/json"
@@ -1013,6 +984,43 @@ export default {
   scale: 0.95;
 }
 
+.dias-semana {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  text-align: center;
+  margin: 0 auto;
+  max-width: 500px;
+}
+
+li.dia-semana {
+  font-weight: bold;
+  padding: 8px 15px;
+  background: var(--color-main00);
+  border-radius: 8px;
+}
+
+.dia-mes {
+  padding: 10px 0;
+  background-color: var(--color-main04);
+  border-radius: 50%;
+  color: var(--color-main00);
+  cursor: pointer;
+  font-weight: bold;
+  font-size: clamp(0.875rem, 0.6125rem + 1.4vw, 1.75rem);
+}
+
+.dia.vazio {
+  background: transparent !important;
+  border: none;
+  cursor: default;
+}
+
+.dia.vazio:hover {
+  background: transparent !important;
+  box-shadow: none;
+}
+
 .ano, .mes{
   color: #fff;
 }
@@ -1034,13 +1042,11 @@ export default {
   justify-items: center;
   list-style-type: none;
   max-width: 500px;
-  padding: 30px 0;
   border-radius: 10px;
   margin: auto;
-  margin-top: 30px;
 }
 
-.diasSemana li{
+.diasSemana .dia{
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1141,4 +1147,60 @@ export default {
   cursor: pointer;
 }
 
+.calendario {
+  width: 100%;
+  max-width: 420px;
+  margin: 32px auto;
+  background: rgba(30, 32, 38, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
+  padding: 24px 18px 18px 18px;
+  backdrop-filter: blur(2px);
+}
+
+.dias-semana, .dias-mes {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+}
+
+.dia-semana {
+  font-weight: 600;
+  padding: 10px 0;
+  background: transparent;
+  color: #a3a9b8;
+  letter-spacing: 1px;
+  font-size: 1.05em;
+  border-bottom: 1px solid #23263a;
+}
+
+.dia-mes {
+  padding: 14px 0;
+  margin: 3px;
+  background: rgba(44, 48, 60, 0.85);
+  color: #e6eaf3;
+  border: 1px solid #23263a;
+  border-radius: 12px;
+  font-size: 1.08em;
+  transition: 
+    background 0.18s,
+    color 0.18s,
+    box-shadow 0.18s;
+  cursor: pointer;
+  box-shadow: 0 1px 4px 0 rgba(60,80,255,0.04);
+}
+
+.dia-mes:hover {
+  background: linear-gradient(90deg, #3a3f5c 0%, #2e3347 100%);
+  color: #7ee7ff;
+  box-shadow: 0 2px 12px 0 rgba(126,231,255,0.10);
+  border-color: #7ee7ff;
+}
+
+.dia-mes.vazio {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: default;
+}
 </style>
